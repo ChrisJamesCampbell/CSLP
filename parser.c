@@ -3,66 +3,16 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/types.h>
+#include <math.h>
+#include <time.h>
 
-/*struct input_file
+struct input_file
 {
-  //capacity of a minibus in terms of number of passengers
-  int bus_capacity;
-
-  //passenger boarding/disembarkation duration (in seconds)
-  int boarding_time;
-
-  //Average number of journey requests per hour
-  double request_rate;
-
-  //Average time between request and desired pick-up (in minutes)
-  double pickup_interval;
-
-  //Maximum time a user can wait beyond the desired pick-up time (in minutes)
-  int max_delay;
-
-  //Number of minibuses
-  int no_buses;
-
-  //Number of bus stops
-  int no_stops;
-
-  //Road layout and distances (in minutes) between bus stops
-  int[][] map;
-
-  //Simulation duration (in hours)
-  int stop_time;
-}
-
-static void initialise_input_file(struct input_file *input_file_instance)
-{
-  input_file_instance->bus_capacity = 0;
-  input_file_instance->boarding_time = 0;
-  input_file_instance->request_rate = 0.0;
-  input_file_instance->pickup_interval = 0.0;
-  input_file_instance->max_delay = 0;
-  input_file_instance->no_buses = 0;
-  input_file_instance->no_buses = 0;
-  input_file_instance->map = {0, 0, 0, 0, 0, 0},
-                    (0, 0, 0, 0, 0, 0},
-                    {0, 0, 0, 0, 0, 0},
-                    {0, 0, 0, 0, 0, 0},
-                    {0, 0, 0, 0, 0, 0},
-                    {0, 0, 0, 0, 0, 0};
-
-
-}
-
-*/
-
-static void parse_input()
-{
-  FILE *fp;
-  char line[256];
-
-
-  
-  //capacity of a minibus in terms of number of passengers
+  ///capacity of a minibus in terms of number of passengers
   int busCapacity;
 
   //passenger boarding/disembarkation duration (in seconds)
@@ -84,17 +34,52 @@ static void parse_input()
   int noStops;
 
   //Road layout and distances (in minutes) between bus stops
-  int map[noStops][noStops];
+  //int map[noStops][noStops];
+  int map;
 
   //Simulation duration (in hours)
   int stopTime;
+};
 
-  int rowIndex = noStops;
-  int colIndex = noStops;
+
+static void initialise_input_file(struct input_file *test_input)
+{
+  test_input->busCapacity = 0;
+
+  test_input->boardingTime = 0;
+
+  test_input->requestRate = 0.0;
+
+  test_input->pickupInterval = 0.0;
+
+  test_input->maxDelay = 0;
+
+  test_input->noBuses = 0;
+
+  test_input->noStops = 0;
+
+  //test_input->map[noStops][noStops] = [0][0];
+  test_input->map = 0;
+
+  test_input->stopTime = 0;
+
+}
+
+
+
+
+static void parse_input(struct input_file *test_input)
+{
+  FILE *fp;
+  char line[1024];
+
+
+  /*int rowIndex = test_input->noStops;
+  int colIndex = test_input->noStops;
 
   for(rowIndex = 0; rowIndex < colIndex; rowIndex++)   
       free(map[rowIndex]);
-    free(map);
+    free(map);*/
 
   /*map = (int **) malloc(colIndex * sizeof(int*));  // rows
   for(rowIndex = 0; rowIndex < colIndex; rowIndex++)   
@@ -104,54 +89,53 @@ static void parse_input()
   fp = fopen("/Documents/CSLP/simulator_test_input.txt", "r");
 
 
-  while(fgets(line,256, fp) != NULL)
+  while(fgets(line,1024, fp) != NULL)
   {
     if(strncmp("busCapacity", line, 11) == 0)
     {
-      sscanf(line+11,"%*[ ]%d", &busCapacity);
+      sscanf(line+11,"%*[ ]%d", &test_input->busCapacity);
     }
 
     if(strncmp("boardingTime", line, 12) == 0)
     {
-      sscanf(line+12,"%*[ ]%d", &boardingTime);
+      sscanf(line+12,"%*[ ]%d", &test_input->boardingTime);
     }
 
     if(strncmp("requestRate", line, 11) == 0)
     {
-      sscanf(line+11, "%*[ ]%lf", &requestRate);
+      sscanf(line+11, "%*[ ]%lf", &test_input->requestRate);
     }
 
     if(strncmp("pickupInterval", line, 14) == 0)
     {
-      sscanf(line+14, "%*[ ]%lf", &pickupInterval);
+      sscanf(line+14, "%*[ ]%lf", &test_input->pickupInterval);
     }
 
     if(strncmp("maxDelay", line, 8) == 0)
     {
-      sscanf(line+8, "%*[ ]%d", &maxDelay);
+      sscanf(line+8, "%*[ ]%d", &test_input->maxDelay);
     }
 
     if(strncmp("noBuses", line, 7) == 0)
     {
-      sscanf(line+7, "%*[ ]%d", &noBuses);
+      sscanf(line+7, "%*[ ]%d", &test_input->noBuses);
     }
 
     if(strncmp("noStops", line, 7) == 0)
     {
-      sscanf(line+7, "%*[ ]%d", &noStops);
+      sscanf(line+7, "%*[ ]%d", &test_input->noStops);
     }
 
-   const char delim[2] = " ";    //used to tokenise each of the rows of map
-   char mapRows[noStops][16];
+   /*const char delim[2] = " ";    //used to tokenise each of the rows of map
+   char mapRows[noStops][16];*/
 
-   if(strncmp("map", line, 3) == 0)
+   /*if(strncmp("map", line, 3) == 0)
    {
     for(int i = 0; i < noStops; i++)
-      &map[i][j] strtok( *line, "\n");
-   }
+      &map[i][j] strtok( */
 
    /*
-   for(int i = 0; i < noStops; i++)
+   for(int i = 0; i < noStops; i++)nput
     sscanf(line+3, "%*\n  
                     %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ]
                     %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ]
@@ -171,7 +155,7 @@ static void parse_input()
 
    if(strncmp("stopTime", line, 8) == 0);
    {
-    sscanf(line+8, "%*[ ]%d", &stopTime);
+    sscanf(line+8, "%*[ ]%d", &test_input->stopTime);
    }
 
 
@@ -183,8 +167,11 @@ static void parse_input()
 int main()
 {
   
+  struct input_file test_input;
+  initialise_input_file(&test_input);
+  parse_input(&test_input);
 
-  parse_input();
+  printf("The Bus Capacity given in the test file was: %d", test_input.busCapacity);
 
 
 
