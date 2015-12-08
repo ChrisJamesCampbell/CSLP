@@ -35,15 +35,27 @@ struct input_file
 
   //Road layout and distances (in minutes) between bus stops
   //int map[noStops][noStops];
-  int map;
+  int map[5][5];
 
   //Simulation duration (in hours)
   int stopTime;
 };
 
+struct request
+{
+  time_t time_stamp;
+  unsigned int from_stop;
+  unsigned int to_stop;
+  time_t for_departure;
+  time_t scheduled_for;
+
+};
+
 
 static void initialise_input_file(struct input_file *test_input)
 {
+  int row, column = 0;
+
   test_input->busCapacity = 0;
 
   test_input->boardingTime = 0;
@@ -59,9 +71,16 @@ static void initialise_input_file(struct input_file *test_input)
   test_input->noStops = 0;
 
   //test_input->map[noStops][noStops] = [0][0];
-  test_input->map = 0;
+  for(row = 0; row < 6; row++)
+  {
+    for(column = 0; column < 6; column++)
+    {
+      test_input->map[row][column] = -1;
+    }
+  }
 
   test_input->stopTime = 0;
+  return;
 
 }
 
@@ -71,7 +90,12 @@ static void initialise_input_file(struct input_file *test_input)
 static void parse_input(struct input_file *test_input)
 {
   FILE *fp;
-  char line[1024];
+  char line[200];
+  char *delim = " \t";
+  char *tempRow;
+  char *token;
+
+
 
 
   /*int rowIndex = test_input->noStops;
@@ -86,11 +110,20 @@ static void parse_input(struct input_file *test_input)
     map[rowIndex] = (int *) malloc(colIndex * sizeof(int));  // columns
 */
 
-  fp = fopen("/Documents/CSLP/simulator_test_input.txt", "r");
+  fp = fopen("/afs/inf.ed.ac.uk/user/s13/s1334028/Documents/CSLP/simulator_test_input", "r");
 
+  
+   while(1)
 
-  while(fgets(line,1024, fp) != NULL)
-  {
+   {
+
+    fgets(line, 200, fp);
+
+    if(feof(fp))
+    {
+      break;
+    }
+  
     if(strncmp("busCapacity", line, 11) == 0)
     {
       sscanf(line+11,"%*[ ]%d", &test_input->busCapacity);
@@ -125,55 +158,174 @@ static void parse_input(struct input_file *test_input)
     {
       sscanf(line+7, "%*[ ]%d", &test_input->noStops);
     }
-
-   /*const char delim[2] = " ";    //used to tokenise each of the rows of map
-   char mapRows[noStops][16];*/
-
-   /*if(strncmp("map", line, 3) == 0)
+ 
+ /*
+  if(strncmp("map", line, 3) == 0)
    {
-    for(int i = 0; i < noStops; i++)
-      &map[i][j] strtok( */
+    fgets(line, 200, fp);
 
-   /*
-   for(int i = 0; i < noStops; i++)nput
-    sscanf(line+3, "%*\n  
-                    %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ]
-                    %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ]
-                    %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ]
-                    %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ]
-                    %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ]
-                    %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d %*[ ] %d ", 
-                    &map[0][0], &map[0][1], &map[0][2], &map[0][3], &map[0][4], &map[0][5], 
-                    &map[1][0], &map[1][1], &map[1][2], &map[1][3], &map[1][4], &map[1][5],
-                    &map[2][0], &map[2][1], &map[2][2], &map[2][3], &map[2][4], &map[2][5],
-                    &map[3][0], &map[3][1], &map[3][2], &map[3][3], &map[3][4], &map[3][5],
-                    &map[4][0], &map[4][1], &map[4][2], &map[4][3], &map[4][4], &map[4][5],
-                    &map[5][0], &map[5][1], &map[5][2], &map[5][3], &map[5][4], &map[5][5],
-                    );*/
+    tempRow = strtok(line, "\n");
+    printf("The value of tempRow is: %s", tempRow);
+    for(int row = 0; row < 6; row++)
+    {
+      for(int column = 0; column < 6; column++)
+      {
+        printf("The value of token is: %s", token);
+        token = strtok(tempRow, delim);
+        token = strtok(NULL, delim);
+        test_input->map[row][column] = atoi(token);
+      }
+
+      fgets(line, 200, fp); 
+    }
     
 
+    
+    int bool = 1;
+    int tempInnerRow = 0;
+    
+      tempRow = strtok(line, "\n");
+      //printf("\nthe value of temp row was %s\n", tempRow);
+      
+
+      
+        while(tempInnerRow < 6)
+        {
+          for(int column = 0; column < 6; column++)
+          {
+            if (bool == 1){
+              token = strtok(line, delim);
+              //printf("Value of token: %s\n", token);
+              bool = 0;
+            } else {
+              token = strtok(NULL, delim);
+              //printf("The value of token was: %s\n", token);
+            }
+              
+            if(token != NULL)
+            {
+              test_input->map[tempInnerRow][column] = atoi(token);
+            } 
+            
+            else 
+            {
+              fgets(line, 200, fp);
+              tempInnerRow++;
+              bool = 1;
+            }
+          }
+
+          
+        }
+
+      
+
+    
+
+  } //closes the end of map reading
+  */
 
    if(strncmp("stopTime", line, 8) == 0);
    {
     sscanf(line+8, "%*[ ]%d", &test_input->stopTime);
    }
 
+   
 
   } //end of while fgets loop
 
-
+  fclose(fp);
 }
+
+static double generate_random()
+{
+  double random_number = rand();
+  return random_number;
+}
+
+static void create_world()
+{
+  return;
+}
+
+static struct request generate_request()
+{
+  //need to use the random algorithm to select randomly distributed numbers
+  //to fill the fields of an instance of a request
+  struct request new_request;
+  return new_request;
+}
+
+static char output_request(struct request *new_request)
+{
+  char str[1024];
+  char a[50], b[50], c[50], d[50], e[50];
+
+
+
+  strcpy(str, sprintf(a, "%d", new_request->time_stamp)); //need to convert this time to a string
+  strcat(str, "-> new request placed from stop");
+  strcat(str, sprintf(b, "%d", new_request->from_stop)); //need to convert this time to a string
+  strcat(str, "to stop");
+  strcat(str, sprintf(c, "%d", new_request->to_stop));
+  strcat(str, "for departure at");
+  strcat(str, sprintf(d, "%d", new_request->for_departure));
+  strcat(str, "scheduled for");
+  strcat(str, sprintf(e, "%d", new_request->scheduled_for));
+
+  return str;
+}
+
+
+
 
 int main()
 {
   
   struct input_file test_input;
+
   initialise_input_file(&test_input);
+
   parse_input(&test_input);
 
-  printf("The Bus Capacity given in the test file was: %d", test_input.busCapacity);
+  time_t sec;
+  sec = time (NULL);
+
+  printf("The Bus Capacity given in the test file was: %d persons.\n", test_input.busCapacity);
+  printf("The Boarding Time given in the test file was: %d seconds.\n", test_input.boardingTime);
+  printf("The Request Rate given in the test file was: %lf seconds.\n", test_input.requestRate);
+  printf("The Pick Up Interval given in the test file was: %lf minutes.\n", test_input.pickupInterval);
+  printf("The Max Delay given in the test file was: %d minutes.\n", test_input.maxDelay);
+  printf("The Numer of Buses given in the test file was: %d buses.\n", test_input.noBuses);
+  printf("The Number of Stops in the test file was: %d stops.\n", test_input.noStops);
+  printf("The Stop Time given in the test file was: %d seconds.\n", test_input.stopTime);
+  printf("The map given in the test file was: \n");
+
+  for(int row = 0; row < 6; row++)
+  {
+    for(int column = 0; column < 6; column++)
+    {
+
+      printf("%d ", test_input.map[row][column]);
+      if(column == 5)
+      {
+        printf("\n");
+      }
+    }
+  }
+
+  create_world();
 
 
+  //loop for generating requests
+  while(1)
+  {
+    struct request new_request = generate_request();
+
+    //needs to be uniformly distributed or some shit
+    sleep((int)generate_random());
+
+  }
 
 
   return 0;
