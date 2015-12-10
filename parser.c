@@ -1,4 +1,4 @@
-//Prelimanary CSLP Simulator 
+///Prelimanary CSLP Simulator 
 
 
 #include <stdio.h>
@@ -10,35 +10,46 @@
 #include <math.h>
 #include <time.h>
 
+
+time_t unix_time_now()
+{
+   time_t now;
+
+   /* Get current time */
+   time(&now);
+
+  return now;
+}
+
 struct input_file
 {
   ///capacity of a minibus in terms of number of passengers
-  int busCapacity;
+  unsigned int busCapacity;
 
   //passenger boarding/disembarkation duration (in seconds)
-  int boardingTime;
+  unsigned int boardingTime;
 
   //Average number of journey requests per hour
-  double requestRate;
+  float requestRate;
 
   //Average time between request and desired pick-up (in minutes)
-  double pickupInterval;
+  float pickupInterval;
 
   //Maximum time a user can wait beyond the desired pick-up time (in minutes)
-  int maxDelay;
+  unsigned int maxDelay;
 
   //Number of minibuses
-  int noBuses;
+  unsigned int noBuses;
 
   //Number of bus stops
-  int noStops;
+  unsigned int noStops;
 
   //Road layout and distances (in minutes) between bus stops
   //int map[noStops][noStops];
-  int map[5][5];
+  int **map; //potentially new way to store map
 
   //Simulation duration (in hours)
-  int stopTime;
+  unsigned int stopTime;
 };
 
 struct request
@@ -49,6 +60,14 @@ struct request
   time_t for_departure;
   time_t scheduled_for;
 
+};
+
+struct bus
+{
+  unsigned int no_passengers;
+  unsigned int current_stop;
+  unsigned int next_stop;
+  unsigned int path[]; //to hold an array of stops
 };
 
 
@@ -243,17 +262,53 @@ static double generate_random()
   return random_number;
 }
 
-static void create_world()
-{
-  return;
+static long random_at_most(long max) {
+  unsigned long
+    // max <= RAND_MAX < ULONG_MAX, so this is okay.
+    num_bins = (unsigned long) max + 1,
+    num_rand = (unsigned long) RAND_MAX + 1,
+    bin_size = num_rand / num_bins,
+    defect   = num_rand % num_bins;
+
+  long x;
+  do {
+   x = random();
+  }
+  // This is carefully written not to overflow
+  while (num_rand - defect <= (unsigned long)x);
+
+  // Truncated division is intentional
+  return x/bin_size;
 }
 
-static struct request generate_request()
+
+static struct request generate_request(struct input_file *test_input)
 {
   //need to use the random algorithm to select randomly distributed numbers
   //to fill the fields of an instance of a request
   struct request new_request;
+
+  new_request.time_stamp = unix_time_now();
+
+  //so a user can't place a request for a bus to or from the garage
+  //and so they can't place a request from their start stop to their destination 
+  while(new_request.from_stop != 0 && new_request.to_stop != 0 && new_request.from_stop != new_request.to_stop)
+  {
+    new_request.from_stop = random_at_most((test_input->noStops) - 1);
+    new_request.to_stop = random_at_most((test_input->noStops) - 1);
+  }
+  //this needs to convert 
+  new_request.for_departure = (int)(new_request.time_stamp) + (random_at_most(test_input->pickupInterval) * 60); //time_stamp is in sscs and we need pickupInterval in secs too
+
+  //holy fucking shit balls, this is where the best possible route algorithm is gonna need to kick in
+  //FUCK MY LIFE
+  //new_request.scheduled_for = 
   return new_request;
+}
+
+static void handle_request(struct request *new_request)
+{
+  return;
 }
 
 static char output_request(struct request *new_request)
@@ -314,16 +369,21 @@ int main()
     }
   }
 
-  create_world();
+  
 
 
   //loop for generating requests
   while(1)
   {
-    struct request new_request = generate_request();
+    struct request new_request = generate_request(); //make a new quest
+
+    handle_request(struct request *new_request); //handle that same request
+
+    printf("%s", output_request(struct request *new_request)); //output the outcome of handling that request to the terminal
 
     //needs to be uniformly distributed or some shit
-    sleep((int)generate_random());
+   //sleep((int)generate_random());
+  sleep(5) //wait 5 seconds before creating the next request
 
   }
 
