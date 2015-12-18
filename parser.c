@@ -250,6 +250,11 @@ static long random_at_most(long max) {
   return x/bin_size;
 }
 
+double uniform_deviate( int seed )
+{
+   return seed * ( 1.0 / ( RAND_MAX + 1.0 ) );
+}
+
 
 static struct request generate_request(struct input_file *test_input)
 {
@@ -282,14 +287,25 @@ static void handle_request(struct request *new_request)
 
 static struct input_file floyd_warshall(struct input_file *test_input) //temporary return idea for new map
 {
+  printf("I have made it into FW method\n");
 
   struct input_file updated_map; //map will be the 
-  initialise_input_file(&updated_map);
+  //initialise_input_file(&updated_map);
 
   int N = test_input->noStops;
   int rowIndex = N;
   int colIndex = N;
   int **dist;  // this will be the new matrix of distances
+
+
+
+  updated_map.map = (int **) malloc(colIndex * sizeof(int*));  // rows
+  for(rowIndex = 0; rowIndex < colIndex; rowIndex++)  
+  { 
+    updated_map.map[rowIndex] = (int *) malloc(colIndex * sizeof(int));
+  }
+
+  
 
   ////////////////////////////////////////////////////////////////
   //POSSIBLY SUPERFLIOUS CODE????????????????????????????????????
@@ -304,17 +320,20 @@ static struct input_file floyd_warshall(struct input_file *test_input) //tempora
   colIndex = 0;
   for(rowIndex = 0; rowIndex < N; rowIndex++)
   {
-    for(colIndex = 0; colIndex < N; rowIndex++)
+    for(colIndex = 0; colIndex < N; colIndex++)
     {
+      //printf("chris\n");
       dist[rowIndex][colIndex] = test_input->map[rowIndex][colIndex];
     }
 
   }
 
+  printf("The dist copy was made\n");
+
   /////////////////////////////////////////////////////////////////
 
   int i, j, k;
-  char route[] = "";
+  //char route[] = "";
   // Input data into dist, where dist[i][j] is the distance from i to j.
    
      for ( k = 0; k < N; k++ )
@@ -338,16 +357,20 @@ static struct input_file floyd_warshall(struct input_file *test_input) //tempora
         }
      }
 
+     printf("The FW'd matrix was made\n");
+
   rowIndex = 0;
   colIndex = 0;
   for(rowIndex = 0; rowIndex < N; rowIndex++)
   {
-    for(colIndex = 0; colIndex < N; rowIndex++)
+    for(colIndex = 0; colIndex < N; colIndex++)
     {
       updated_map.map[rowIndex][colIndex] = dist[rowIndex][colIndex];
     }
 
   }
+
+  printf("The FW'd matrix was copied into the updated_map map\n");
 
   /*
   procedure Path(u, v)
@@ -424,7 +447,7 @@ int main(int argc, char* argv[])
     for(column = 0; column < test_input.noStops; column++)
     {
 
-      printf("%d ", test_input.map[row][column]);
+      printf("%d\t", test_input.map[row][column]);
       if(column == test_input.noStops - 1)
       {
         printf("\n");
@@ -432,7 +455,9 @@ int main(int argc, char* argv[])
     }
   }
 
- /* struct input_file fwdmap = floyd_warshall(&test_input);
+  //free(test_input.map);
+
+  struct input_file fwdmap = floyd_warshall(&test_input);
 
 
   printf("The Result of the Floyd-Warshall'd map is: \n");
@@ -448,7 +473,7 @@ int main(int argc, char* argv[])
         printf("\n");
       }
     }
-  }*/
+  }
 
 
 /*
