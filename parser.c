@@ -10,6 +10,9 @@
 #include <math.h>
 #include <time.h>
 
+unsigned int global_time;
+unsigned int max_time; // to be set to stopTime given by the input_file
+
 
 time_t unix_time_now()
 {
@@ -54,10 +57,10 @@ struct input_file
 
 struct request
 {
-  time_t time_stamp;
+  unsigned int time_stamp;
   unsigned int from_stop;
   unsigned int to_stop;
-  time_t for_departure;
+  unsigned int for_departure;
 
   //think this is inappropriate to include in the request structure
   //and should in fact be the calculated metric that's appended on in an output string
@@ -231,31 +234,30 @@ static void parse_input(struct input_file *test_input, char* input)
   fclose(fp);
 }
 
-static long random_at_most(long max) {
-  unsigned long
-    // max <= RAND_MAX < ULONG_MAX, so this is okay.
-    num_bins = (unsigned long) max + 1,
-    num_rand = (unsigned long) RAND_MAX + 1,
-    bin_size = num_rand / num_bins,
-    defect   = num_rand % num_bins;
-
-  long x;
-  do {
-   x = rand();
-  }
-  // This is carefully written not to overflow
-  while (num_rand - defect <= (unsigned long)x);
-
-  // Truncated division is intentional
-  return x/bin_size;
-}
-
 double uniform_deviate( int seed )
 {
    return seed * ( 1.0 / ( RAND_MAX + 1.0 ) );
 }
 
+static int generate_random( int seed, float request_rate) {
 
+  //srand((unsigned) time(NULL));
+  double r;
+
+  while(r == 0.0)
+  {
+    r = uniform_deviate( rand());
+    printf("The value of r is: %lf\n", r);
+  }
+  r = (int) floor((-log(r)*request_rate));
+
+  return r;
+
+}
+
+
+
+/*
 static struct request generate_request(struct input_file *test_input)
 {
   //need to use the random algorithm to select randomly distributed numbers
@@ -275,7 +277,7 @@ static struct request generate_request(struct input_file *test_input)
   new_request.for_departure = (int)(new_request.time_stamp) + (random_at_most(test_input->pickupInterval) * 60); //time_stamp is in sscs and we need pickupInterval in secs too
 
   return new_request;
-}
+}*/
 
 static void handle_request(struct request *new_request)
 {
@@ -372,21 +374,6 @@ static struct input_file floyd_warshall(struct input_file *test_input) //tempora
 
   printf("The FW'd matrix was copied into the updated_map map\n");
 
-  /*
-  procedure Path(u, v)
-   if next[u][v] = null then
-       return []
-   path = [u]
-   while u ≠ v
-       u ← next[u][v]
-       path.append(u)
-   return path
- */
-
-
-
-
-
   return updated_map;
 }
 
@@ -410,8 +397,8 @@ static char* output_request(struct request *new_request)
   //strcat(str, sprintf(e, "%d", new_request->scheduled_for));
 
   return str;
-}
-*/
+}*/
+
 
 
 
@@ -430,6 +417,14 @@ int main(int argc, char* argv[])
 
   initialise_fleet(&test_input, fleet);
 
+  //time_t sec;
+  //sec = time (NULL);
+  /* Intializes random number generator */
+  srand((unsigned) time(NULL));
+
+  float request_rate = test_input.requestRate;
+  float stop_time = test_input.stopTime;
+
   printf("The Bus Capacity given in the test file was: %d persons.\n", test_input.busCapacity);
   printf("The Boarding Time given in the test file was: %d seconds.\n", test_input.boardingTime);
   printf("The Request Rate given in the test file was: %f seconds.\n", test_input.requestRate);
@@ -437,7 +432,7 @@ int main(int argc, char* argv[])
   printf("The Max Delay given in the test file was: %d minutes.\n", test_input.maxDelay);
   printf("The Numer of Buses given in the test file was: %d buses.\n", test_input.noBuses);
   printf("The Number of Stops in the test file was: %d stops.\n", test_input.noStops);
-  printf("The Stop Time given in the test file was: %d seconds.\n", test_input.stopTime);
+  printf("The Stop Time given in the test file was: %d hours.\n", test_input.stopTime);
   printf("The map given in the test file was: \n");
 
 
@@ -448,11 +443,11 @@ int main(int argc, char* argv[])
     {
 
       printf("%d\t", test_input.map[row][column]);
-      if(column == test_input.noStops - 1)
-      {
-        printf("\n");
-      }
+      
+        
+      
     }
+    printf("\n");
   }
 
   //free(test_input.map);
@@ -467,33 +462,35 @@ int main(int argc, char* argv[])
     for(column = 0; column < test_input.noStops; column++)
     {
 
-      printf("%d ", fwdmap.map[row][column]);
-      if(column == test_input.noStops - 1)
-      {
-        printf("\n");
-      }
+      printf("%d\t", fwdmap.map[row][column]);
+      
     }
+    printf("\n");
   }
 
+//////////////////////////////THE PROGRAM IS ACTUALLY WORKING UP UNTIL HERE////////////////////////////////////////////////
+//NEED TO GENERATE REQUESTS
 
-/*
+global_time = generate_random(rand(), request_rate);
 
-  //loop for generating requests
-  while(1)
-  {
-    struct request new_request = generate_request(&test_input); //make a new quest
 
-    handle_request(&new_request); //handle that same request
+printf("The global_time is: %d \n", global_time);
 
-    //printf("%s", output_request(&new_request)); //output the outcome of handling that request to the terminal
+max_time = stop_time * 3600; // for conversion into seconds from hours
 
-    //needs to be uniformly distributed or some shit
-   //sleep((int)generate_random());
-  sleep(5); //wait 5 seconds before creating the next request
+printf("The maximum_time for the simulation is: %d\n", max_time);
 
-  }
 
-*/
+
+
+
+//NEED TO PRINT OUT REQEUSTS TO TERMINAL (to test it)
+
+//GIVEN A REQUEST, NEED TO HAVE A SCHEDULING FUNCTION AND A FUNCTION TO UPDATE THE SYSTEM (i.e where are the buses now)
+
+//NEED TO TERMINATE THE SIMULATION ONCE GLOBAL_TIME == MAX_TIME
+
+
   return 0;
 
 }
