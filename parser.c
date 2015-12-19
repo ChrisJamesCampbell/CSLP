@@ -255,32 +255,153 @@ static int generate_random( int seed, float request_rate) {
 
 }
 
+const char * format_global_time(int t)
+{
+  unsigned int seconds, minutes, hours, days;
+  char str[1024]; 
+
+  //deliberate truncation utilized for the # of days
+  days = (t / 86400); //24*60*60, 
+  hours = (t / 3600) % 24 ;
+  minutes = (t/ 60) % 60;
+  seconds = (t % 60) ;
+
+  sprintf(str, "%02d:%02d:%02d:%02d", days, hours, minutes, seconds);
+
+  return str;
+
+}
+
+static long random_at_most(long max) {
+  unsigned long
+    // max <= RAND_MAX < ULONG_MAX, so this is okay.
+    num_bins = (unsigned long) max + 1,
+    num_rand = (unsigned long) RAND_MAX + 1,
+    bin_size = num_rand / num_bins,
+    defect   = num_rand % num_bins;
+
+  long x;
+  do {
+   x = rand();
+  }
+  // This is carefully written not to overflow
+  while (num_rand - defect <= (unsigned long)x);
+
+  // Truncated division is intentional
+  return x/bin_size;
+ }
+
+ unsigned int rand_interval(unsigned int min, unsigned int max)
+{
+    int r;
+    const unsigned int range = 1 + max - min;
+    const unsigned int buckets = RAND_MAX / range;
+    const unsigned int limit = buckets * range;
+
+    /* Create equal size buckets all in a row, then fire randomly towards
+     * the buckets until you land in one of them. All buckets are equally
+     * likely. If you land off the end of the line of buckets, try again. */
+    do
+    {
+        r = rand();
+    } while (r >= limit);
+
+    return min + (r / buckets);
+}
 
 
-/*
+
+
 static struct request generate_request(struct input_file *test_input)
 {
   //need to use the random algorithm to select randomly distributed numbers
   //to fill the fields of an instance of a request
   struct request new_request;
 
-  new_request.time_stamp = unix_time_now();
+  new_request.time_stamp = global_time;
 
   //so a user can't place a request for a bus to or from the garage
   //and so they can't place a request from their start stop to their destination 
-  while(new_request.from_stop != 0 && new_request.to_stop != 0 && new_request.from_stop != new_request.to_stop)
-  {
-    new_request.from_stop = random_at_most((test_input->noStops) - 1);
-    new_request.to_stop = random_at_most((test_input->noStops) - 1);
+
+  //printf("From stop is: %d\n", new_request.from_stop);
+
+    srand(global_time);
+
+    new_request.from_stop = rand_interval(1, (test_input->noStops) -1) ;
+    new_request.to_stop = rand_interval(1, (test_input->noStops) -1) ;
+
+    while(new_request.from_stop == new_request.to_stop)
+    {
+      
+      new_request.to_stop = rand_interval(1, (test_input->noStops) -1) ;
+    
   }
+
   //this needs to convert 
-  new_request.for_departure = (int)(new_request.time_stamp) + (random_at_most(test_input->pickupInterval) * 60); //time_stamp is in sscs and we need pickupInterval in secs too
+  new_request.for_departure = global_time + (random_at_most(test_input->pickupInterval) * 60); //time_stamp is in sscs and we need pickupInterval in secs too
 
   return new_request;
-}*/
+}
 
-static void handle_request(struct request *new_request)
+static void handle_request(struct request *request, struct input_file *updated_map, struct bus *fleet)
 {
+  printf("I have made it into handle_request\n");
+
+  int i;
+  int no_bus = updated_map->noBuses;
+  int selected_bus;
+  int road_map[updated_map->noStops];
+  int distance_to_travel = (updated_map->map[request->from_stop][request->to_stop]) * 60; //distance between request stops in seconds
+  int garage_to_stop = (updated_map->map[0][request->from_stop]) * 60; //distance in seconds
+
+
+  int bus_to_stop; //the projected distance between the current location of the bus and the chosen pick up stop
+
+  int time_scheduled_for; //in seconds
+
+  for(i = 0; i < no_bus; i++)
+  {
+    //search through all the buses in the garage
+    //and send the first one found to pick up passenger
+    if(fleet[i].current_stop == 0)
+    {
+      printf("I have made it into the garage_loop\n");
+
+      selected_bus = i + 1; //so we get a 1 - Nth range of buses
+      
+      road_map[request->to_stop] = selected_bus;
+      time_scheduled_for = global_time + garage_to_stop;
+
+      fleet[i].current_stop = request->to_stop;
+      fleet[i].no_passengers++;
+
+      break; //we have found our bus to send out
+
+
+
+    }
+
+    //else there are no buses in the garage
+    //so we will need to check which bus is closes to the request source stop
+    //and route that bus there if we can
+    else
+    {
+      //
+    }
+
+  }
+
+
+  printf("%s -> new request placed from stop %d to stop %d for departure at %s scheduled for %s \n", 
+  format_global_time(request->time_stamp), 
+  request->from_stop, 
+  request->to_stop, 
+  format_global_time(request->for_departure),
+  format_global_time(time_scheduled_for));
+
+  printf("Minibus %d left stop %d", selected_bus, 0);
+
+
 
 
   return;
@@ -378,30 +499,6 @@ static struct input_file floyd_warshall(struct input_file *test_input) //tempora
 }
 
 
-/*
-static char* output_request(struct request *new_request)
-{
-  char str = malloc(sizeof(char)*1024);
-  char a[50], b[50], c[50], d[50];
-
-
-
-  strcpy(str, sprintf(a, "%d", (int)new_request->time_stamp)); //need to convert this time to a string
-  strcat(str, "-> new request placed from stop");
-  strcat(str, sprintf(b, "%d", new_request->from_stop)); //need to convert this time to a string
-  strcat(str, "to stop");
-  strcat(str, sprintf(c, "%d", new_request->to_stop));
-  strcat(str, "for departure at");
-  strcat(str, sprintf(d, "%d", (int)new_request->for_departure));
-  //strcat(str, "scheduled for");
-  //strcat(str, sprintf(e, "%d", new_request->scheduled_for));
-
-  return str;
-}*/
-
-
-
-
 int main(int argc, char* argv[])
 {
   
@@ -410,15 +507,12 @@ int main(int argc, char* argv[])
   //initialise_input_file(&test_input);
   parse_input(&test_input, argv[1]);
 
-  //time_t sec;
-  //sec = time (NULL);
+ 
 
   struct bus fleet[test_input.noBuses];
 
   initialise_fleet(&test_input, fleet);
 
-  //time_t sec;
-  //sec = time (NULL);
   /* Intializes random number generator */
   srand((unsigned) time(NULL));
 
@@ -478,8 +572,30 @@ printf("The global_time is: %d \n", global_time);
 
 max_time = stop_time * 3600; // for conversion into seconds from hours
 
+
 printf("The maximum_time for the simulation is: %d\n", max_time);
 
+//the simulator time frame, translated from pseudocode in handout
+while(global_time < max_time)
+{
+  srand(time(NULL));
+  struct request new_request = generate_request(&test_input);
+  handle_request(&new_request, &fwdmap, fleet);
+  /*printf("%s -> new request placed from stop %d to stop %d scheduled for %s\n", 
+    format_global_time(new_request.time_stamp), 
+    new_request.from_stop, 
+    new_request.to_stop, 
+    format_global_time(new_request.for_departure));*/
+
+
+  
+  int incrementing_factor = (int) ( 60/request_rate ) * 60; //gives us the number of minutes in between requests then multiply this by 60 to give us it in seconds
+  global_time = global_time + incrementing_factor;
+
+  //handle_request(&new_request, &updated_map, &fleet);
+
+
+}
 
 
 
