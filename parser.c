@@ -249,18 +249,18 @@ static int generate_random( int seed, float request_rate) {
     r = uniform_deviate( rand());
     printf("The value of r is: %lf\n", r);
   }
-  r = (int) floor((-log(r)*request_rate));
+  r = (int) (-log(r)*request_rate);
 
   return r;
 
 }
 
-const char * format_global_time(int t)
+void format_global_time(char *str, int t)
 {
   unsigned int seconds, minutes, hours, days;
 
-  char str[1024]; //1024 chosen just so as to have well enough memory allocated
-
+  //char str[1024]; //1024 chosen just so as to have well enough memory allocated
+  //printf("The formatted time beforehand: %s\n", str);
   //deliberate truncation utilized for the # of days
   days = (t / 86400); //24*60*60, 
   hours = (t / 3600) % 24 ;
@@ -268,8 +268,8 @@ const char * format_global_time(int t)
   seconds = (t % 60) ;
 
   sprintf(str, "%02d:%02d:%02d:%02d", days, hours, minutes, seconds);
-
-  return str;
+  //printf("The formatted time is afterwards: %s\n", str);
+  return;
 
 }
 
@@ -326,7 +326,7 @@ static struct request generate_request(struct input_file *test_input)
 
   //printf("From stop is: %d\n", new_request.from_stop);
 
-    srand(global_time);
+    //srand(global_time);
 
     new_request.from_stop = rand_interval(1, (test_input->noStops) -1) ;
     new_request.to_stop = rand_interval(1, (test_input->noStops) -1) ;
@@ -352,18 +352,23 @@ static void handle_request(struct request *request, struct input_file *test_inpu
   //printf("The value of request.for_departure in handle_request is: %d\n", request->for_departure);
   int i;
   int no_bus = test_input->noBuses;
+  int boarding_time = test_input->boardingTime;
+
   int selected_bus;
   int road_map[test_input->noStops];
+  int time_left_garage = request->time_stamp;
   int garage_to_stop = (test_input->map[0][request->from_stop]) * 60; //distance in seconds
 
   int bus_to_stop; //the projected distance between the current location of the bus and the chosen pick up stop
-  int from_stop_to_stop_time = test_input->map[request->from_stop][request->to_stop];
+  int from_stop_to_stop_time = (test_input->map[request->from_stop][request->to_stop] * 60); //time to get from source to destination of request in seconds
 
   int time_scheduled_for; //in seconds
   int time_to_get_to_from = (request->time_stamp + test_input->map[0][request->from_stop] * 60);
   int max_delay = test_input->maxDelay * 60;
 
-  int arrival_time;
+  int left_from_stop = time_to_get_to_from + boarding_time;
+  int arrival_time = left_from_stop + from_stop_to_stop_time;
+  int time_unoccupied = arrival_time + boarding_time;
   
   //char* skidouche;
   //skidouche = format_global_time((request->time_stamp + test_input->map[0][request->from_stop] * 60));
@@ -371,6 +376,29 @@ static void handle_request(struct request *request, struct input_file *test_inpu
 
   //printf("The value of no buses is: %d", no_bus);
 
+char time_stamp[1024];
+format_global_time(time_stamp, request->time_stamp);
+
+char for_departure[1024];
+format_global_time(for_departure, request->for_departure);
+
+char scheduled_for[1024];
+format_global_time(scheduled_for, time_to_get_to_from);
+
+char time_left_garage_s[1024];
+format_global_time(time_left_garage_s, time_left_garage);
+
+char arrived_at_from[1024];
+format_global_time(arrived_at_from, time_to_get_to_from);
+
+char left_from_stop_s[1024];
+format_global_time(left_from_stop_s, left_from_stop);
+
+char arrival_time_s[1024];
+format_global_time(arrival_time_s, arrival_time);
+
+char time_unoccupied_s[1014];
+format_global_time(time_unoccupied_s, time_unoccupied);
 
 
 
@@ -383,11 +411,11 @@ static void handle_request(struct request *request, struct input_file *test_inpu
     //to pick up this request
     if((time_to_get_to_from - request->for_departure) > max_delay)
     {
-      printf("%d -> new request placed from stop %d to stop %d for departure at %d cannot be accomodated \n", 
-      request->time_stamp,
+      printf("%s -> new request placed from stop %d to stop %d for departure at %s cannot be accomodated \n", 
+      time_stamp,
       request->from_stop, 
       request->to_stop, 
-      request->for_departure);
+      for_departure);
       break;
     }
 
@@ -395,32 +423,39 @@ static void handle_request(struct request *request, struct input_file *test_inpu
     //and send the first one found to pick up passenger
     if(fleet[i].current_stop == 0)
     {
-      printf("I have made it into the garage_loop\n");
-      printf("The value of garage to stop is: %d \n", test_input->map[0][request->from_stop]);
+      //printf("I have made it into the garage_loop\n");
+      //printf("The value of garage to stop is: %d \n", test_input->map[0][request->from_stop]);
 
       selected_bus = i + 1; //so we get a 1 - Nth range of buses
       
       road_map[request->from_stop] = selected_bus;
       time_scheduled_for = request->time_stamp + garage_to_stop;
 
-      fleet[i].current_stop = request->from_stop;
+      
       fleet[i].occupied++;
 
     
-      printf("%d -> new request placed from stop %d to stop %d for departure at %d scheduled for %d \n", 
-      request->time_stamp,
+      printf("%s -> new request placed from stop %d to stop %d for departure at %s scheduled for %s \n", 
+      time_stamp,
       request->from_stop, 
       request->to_stop, 
-      request->for_departure,
-      time_to_get_to_from);
+      for_departure,
+      scheduled_for);
 
-      //format_global_time(request->time_stamp), 
-      printf("Minibus %d left stop %d\n\n", selected_bus, 0);
-    /*//the bus has to travel from the pick up to the destination given the time it takes to get there
-    arrival_time = time_to_get_to_from + from_stop_to_stop_time;
-    printf("Minibus %d will arrive at stop %d at time: %d\n", selected_bus, request->to_stop, arrival_time);
-    fleet[selected_bus].current_stop = request->to_stop;
-*/
+      printf("%s -> Minibus %d left stop %d\n", time_left_garage_s, selected_bus, 0);
+      
+      fleet[i].current_stop = request->from_stop;
+      printf("%s -> Minibus %d arrived at stop %d\n", arrived_at_from, selected_bus, request->from_stop);
+
+      printf("%s -> Minibus %d became occupied and left stop %d\n", left_from_stop_s, selected_bus, request->from_stop);
+
+      //the bus has to travel from the pick up to the destination given the time it takes to get there
+      printf("%s -> Minibus %d arrived at stop %d \n", arrival_time_s, selected_bus, request->to_stop);
+      printf("%s -> Minibus %d disembarked passenger and became unoccupied\n\n", time_unoccupied_s, selected_bus);
+
+
+    fleet[i].current_stop = request->to_stop;
+
     break; //we have found our bus to send out
 
     }
@@ -545,14 +580,14 @@ int main(int argc, char* argv[])
   initialise_fleet(&test_input, fleet);
 
   /* Intializes random number generator */
-  srand((unsigned) time(NULL));
+  srand((unsigned int) time(NULL));
 
   float request_rate = test_input.requestRate;
   float stop_time = test_input.stopTime;
 
   printf("The Bus Capacity given in the test file was: %d persons.\n", test_input.busCapacity);
   printf("The Boarding Time given in the test file was: %d seconds.\n", test_input.boardingTime);
-  printf("The Request Rate given in the test file was: %f seconds.\n", test_input.requestRate);
+  printf("The Request Rate given in the test file was: %f per hour.\n", test_input.requestRate);
   printf("The Pick Up Interval given in the test file was: %f minutes.\n", test_input.pickupInterval);
   printf("The Max Delay given in the test file was: %d minutes.\n", test_input.maxDelay);
   printf("The Numer of Buses given in the test file was: %d buses.\n", test_input.noBuses);
@@ -598,10 +633,10 @@ int main(int argc, char* argv[])
 //////////////////////////////THE PROGRAM IS ACTUALLY WORKING UP UNTIL HERE////////////////////////////////////////////////
 //NEED TO GENERATE REQUESTS
 
-global_time = generate_random(rand(), request_rate);
+//global_time = generate_random(rand(), request_rate);
+global_time = 0;
 
-
-printf("The global_time is: %d \n", global_time);
+printf("The global_time is: %d seconds\n", global_time);
 
 max_time = stop_time * 3600; // for conversion into seconds from hours
 
@@ -611,7 +646,7 @@ printf("The maximum_time for the simulation is: %d\n", max_time);
 //the simulator time frame, translated from pseudocode in handout
 while(global_time < max_time)
 {
-  srand(time(NULL));
+  //srand(time(NULL));
   struct request new_request = generate_request(&test_input);
   handle_request(&new_request, &test_input, fleet);
   /*printf("%s -> new request placed from stop %d to stop %d scheduled for %s\n", 
@@ -622,7 +657,9 @@ while(global_time < max_time)
 
 
   
-  int incrementing_factor = (int) ( 60/request_rate ) * 60; //gives us the number of minutes in between requests then multiply this by 60 to give us it in seconds
+  //int incrementing_factor = (int) ( 60/request_rate ) * 60; //gives us the number of minutes in between requests then multiply this by 60 to give us it in seconds
+  int incrementing_factor = generate_random(time(NULL), request_rate);
+  int request_frequency = ((60/request_rate) * 60 ); //average frequency of requests in seconds
   global_time = global_time + incrementing_factor;
 
   //handle_request(&new_request, &updated_map, &fleet);
