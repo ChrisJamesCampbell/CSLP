@@ -72,7 +72,7 @@ struct request
 
 struct bus
 {
-  unsigned int no_passengers;
+  unsigned int occupied;
   unsigned int current_stop;
   unsigned int next_stop;
   unsigned int *path; //to hold an array of stops
@@ -114,7 +114,7 @@ static void initialise_fleet(struct input_file *test_input, struct bus fleet[tes
   int i;
   for(i = 0; i < test_input->noBuses; i++)
   {
-    fleet[i].no_passengers = 0;
+    fleet[i].occupied = 0;
     fleet[i].current_stop = 0;
     fleet[i].next_stop = 0;
     fleet[i].path = malloc(sizeof(int) * test_input->noStops); //temporary idea for allowed size of path
@@ -258,7 +258,8 @@ static int generate_random( int seed, float request_rate) {
 const char * format_global_time(int t)
 {
   unsigned int seconds, minutes, hours, days;
-  char str[1024]; 
+
+  char str[1024]; //1024 chosen just so as to have well enough memory allocated
 
   //deliberate truncation utilized for the # of days
   days = (t / 86400); //24*60*60, 
@@ -338,68 +339,111 @@ static struct request generate_request(struct input_file *test_input)
   }
 
   //this needs to convert 
-  new_request.for_departure = global_time + (random_at_most(test_input->pickupInterval) * 60); //time_stamp is in sscs and we need pickupInterval in secs too
+  new_request.for_departure = (global_time + (random_at_most(test_input->pickupInterval) * 60)); //time_stamp is in sscs and we need pickupInterval in secs too
+  //printf("The value of new_request.for_departure is: %d\n", new_request.for_departure);
 
   return new_request;
 }
 
-static void handle_request(struct request *request, struct input_file *updated_map, struct bus *fleet)
+static void handle_request(struct request *request, struct input_file *test_input, struct bus *fleet)
 {
-  printf("I have made it into handle_request\n");
-
+  //printf("I have made it into handle_request\n");
+  //printf("The value of request.time_stamp is: %d \n", request->time_stamp);
+  //printf("The value of request.for_departure in handle_request is: %d\n", request->for_departure);
   int i;
-  int no_bus = updated_map->noBuses;
+  int no_bus = test_input->noBuses;
   int selected_bus;
-  int road_map[updated_map->noStops];
-  int distance_to_travel = (updated_map->map[request->from_stop][request->to_stop]) * 60; //distance between request stops in seconds
-  int garage_to_stop = (updated_map->map[0][request->from_stop]) * 60; //distance in seconds
-
+  int road_map[test_input->noStops];
+  int garage_to_stop = (test_input->map[0][request->from_stop]) * 60; //distance in seconds
 
   int bus_to_stop; //the projected distance between the current location of the bus and the chosen pick up stop
+  int from_stop_to_stop_time = test_input->map[request->from_stop][request->to_stop];
 
   int time_scheduled_for; //in seconds
+  int time_to_get_to_from = (request->time_stamp + test_input->map[0][request->from_stop] * 60);
+  int max_delay = test_input->maxDelay * 60;
+
+  int arrival_time;
+  
+  //char* skidouche;
+  //skidouche = format_global_time((request->time_stamp + test_input->map[0][request->from_stop] * 60));
+  //int distance_to_travel = (test_input->map[request->from_stop][request->to_stop]) * 60; //distance between request stops in seconds
+
+  //printf("The value of no buses is: %d", no_bus);
+
+
+
+
+
+
 
   for(i = 0; i < no_bus; i++)
   {
+    //if we cannot schedule a bus on time
+    //to pick up this request
+    if((time_to_get_to_from - request->for_departure) > max_delay)
+    {
+      printf("%d -> new request placed from stop %d to stop %d for departure at %d cannot be accomodated \n", 
+      request->time_stamp,
+      request->from_stop, 
+      request->to_stop, 
+      request->for_departure);
+      break;
+    }
+
     //search through all the buses in the garage
     //and send the first one found to pick up passenger
     if(fleet[i].current_stop == 0)
     {
       printf("I have made it into the garage_loop\n");
+      printf("The value of garage to stop is: %d \n", test_input->map[0][request->from_stop]);
 
       selected_bus = i + 1; //so we get a 1 - Nth range of buses
       
-      road_map[request->to_stop] = selected_bus;
-      time_scheduled_for = global_time + garage_to_stop;
+      road_map[request->from_stop] = selected_bus;
+      time_scheduled_for = request->time_stamp + garage_to_stop;
 
-      fleet[i].current_stop = request->to_stop;
-      fleet[i].no_passengers++;
+      fleet[i].current_stop = request->from_stop;
+      fleet[i].occupied++;
 
-      break; //we have found our bus to send out
+    
+      printf("%d -> new request placed from stop %d to stop %d for departure at %d scheduled for %d \n", 
+      request->time_stamp,
+      request->from_stop, 
+      request->to_stop, 
+      request->for_departure,
+      time_to_get_to_from);
 
-
+      //format_global_time(request->time_stamp), 
+      printf("Minibus %d left stop %d\n\n", selected_bus, 0);
+    /*//the bus has to travel from the pick up to the destination given the time it takes to get there
+    arrival_time = time_to_get_to_from + from_stop_to_stop_time;
+    printf("Minibus %d will arrive at stop %d at time: %d\n", selected_bus, request->to_stop, arrival_time);
+    fleet[selected_bus].current_stop = request->to_stop;
+*/
+    break; //we have found our bus to send out
 
     }
 
     //else there are no buses in the garage
-    //so we will need to check which bus is closes to the request source stop
+    //so we will need to check which bus is closest to the request source stop
     //and route that bus there if we can
     else
     {
       //
     }
-
   }
 
 
-  printf("%s -> new request placed from stop %d to stop %d for departure at %s scheduled for %s \n", 
-  format_global_time(request->time_stamp), 
-  request->from_stop, 
-  request->to_stop, 
-  format_global_time(request->for_departure),
-  format_global_time(time_scheduled_for));
+    
 
-  printf("Minibus %d left stop %d", selected_bus, 0);
+
+
+
+
+  //else all the buses have left the garage and we want to see where the next closest bus is
+   
+
 
 
 
@@ -408,11 +452,10 @@ static void handle_request(struct request *request, struct input_file *updated_m
 }
 
 
-static struct input_file floyd_warshall(struct input_file *test_input) //temporary return idea for new map
+static void floyd_warshall(struct input_file *test_input) //temporary return idea for new map
 {
   printf("I have made it into FW method\n");
 
-  struct input_file updated_map; //map will be the 
   //initialise_input_file(&updated_map);
 
   int N = test_input->noStops;
@@ -421,18 +464,6 @@ static struct input_file floyd_warshall(struct input_file *test_input) //tempora
   int **dist;  // this will be the new matrix of distances
 
 
-
-  updated_map.map = (int **) malloc(colIndex * sizeof(int*));  // rows
-  for(rowIndex = 0; rowIndex < colIndex; rowIndex++)  
-  { 
-    updated_map.map[rowIndex] = (int *) malloc(colIndex * sizeof(int));
-  }
-
-  
-
-  ////////////////////////////////////////////////////////////////
-  //POSSIBLY SUPERFLIOUS CODE????????????????????????????????????
-  
   dist = (int **) malloc(colIndex * sizeof(int*));  // rows
   for(rowIndex = 0; rowIndex < colIndex; rowIndex++)
   {   
@@ -488,14 +519,14 @@ static struct input_file floyd_warshall(struct input_file *test_input) //tempora
   {
     for(colIndex = 0; colIndex < N; colIndex++)
     {
-      updated_map.map[rowIndex][colIndex] = dist[rowIndex][colIndex];
+      test_input->map[rowIndex][colIndex] = dist[rowIndex][colIndex];
     }
 
   }
 
   printf("The FW'd matrix was copied into the updated_map map\n");
 
-  return updated_map;
+  return;
 }
 
 
@@ -546,7 +577,9 @@ int main(int argc, char* argv[])
 
   //free(test_input.map);
 
-  struct input_file fwdmap = floyd_warshall(&test_input);
+  floyd_warshall(&test_input);
+
+  ////////////////////////////////////////FROM HERE ON, USE test_input INSTEAD OF test_input////////////////////////////////////////////////
 
 
   printf("The Result of the Floyd-Warshall'd map is: \n");
@@ -556,7 +589,7 @@ int main(int argc, char* argv[])
     for(column = 0; column < test_input.noStops; column++)
     {
 
-      printf("%d\t", fwdmap.map[row][column]);
+      printf("%d\t", test_input.map[row][column]);
       
     }
     printf("\n");
@@ -580,7 +613,7 @@ while(global_time < max_time)
 {
   srand(time(NULL));
   struct request new_request = generate_request(&test_input);
-  handle_request(&new_request, &fwdmap, fleet);
+  handle_request(&new_request, &test_input, fleet);
   /*printf("%s -> new request placed from stop %d to stop %d scheduled for %s\n", 
     format_global_time(new_request.time_stamp), 
     new_request.from_stop, 
