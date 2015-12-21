@@ -350,133 +350,151 @@ static void handle_request(struct request *request, struct input_file *test_inpu
   //printf("I have made it into handle_request\n");
   //printf("The value of request.time_stamp is: %d \n", request->time_stamp);
   //printf("The value of request.for_departure in handle_request is: %d\n", request->for_departure);
-  int i;
-  int no_bus = test_input->noBuses;
-  int boarding_time = test_input->boardingTime;
-
-  int selected_bus;
-  int road_map[test_input->noStops];
-  int time_left_garage = request->time_stamp;
-  int garage_to_stop = (test_input->map[0][request->from_stop]) * 60; //distance in seconds
-
-  int bus_to_stop; //the projected distance between the current location of the bus and the chosen pick up stop
-  int from_stop_to_stop_time = (test_input->map[request->from_stop][request->to_stop] * 60); //time to get from source to destination of request in seconds
-
-  int time_scheduled_for; //in seconds
-  int time_to_get_to_from = (request->time_stamp + test_input->map[0][request->from_stop] * 60);
-  int max_delay = test_input->maxDelay * 60;
-
-  int left_from_stop = time_to_get_to_from + boarding_time;
-  int arrival_time = left_from_stop + from_stop_to_stop_time;
-  int time_unoccupied = arrival_time + boarding_time;
-  
+  //int garage_to_stop = (test_input->map[0][request->from_stop]) * 60; //distance in seconds
   //char* skidouche;
   //skidouche = format_global_time((request->time_stamp + test_input->map[0][request->from_stop] * 60));
   //int distance_to_travel = (test_input->map[request->from_stop][request->to_stop]) * 60; //distance between request stops in seconds
-
   //printf("The value of no buses is: %d", no_bus);
 
-char time_stamp[1024];
-format_global_time(time_stamp, request->time_stamp);
+  int selected_bus;
+  int i;
+  i = 0;
+  
+  int no_bus = test_input->noBuses;
+  int boarding_time = test_input->boardingTime;
 
-char for_departure[1024];
-format_global_time(for_departure, request->for_departure);
-
-char scheduled_for[1024];
-format_global_time(scheduled_for, time_to_get_to_from);
-
-char time_left_garage_s[1024];
-format_global_time(time_left_garage_s, time_left_garage);
-
-char arrived_at_from[1024];
-format_global_time(arrived_at_from, time_to_get_to_from);
-
-char left_from_stop_s[1024];
-format_global_time(left_from_stop_s, left_from_stop);
-
-char arrival_time_s[1024];
-format_global_time(arrival_time_s, arrival_time);
-
-char time_unoccupied_s[1014];
-format_global_time(time_unoccupied_s, time_unoccupied);
+  int bus_locations[test_input->noStops];
+  int time_left_stop = request->time_stamp;
+  int max_delay = test_input->maxDelay * 60;
 
 
+  //initialise the closest bus to request as the 0th bus
+  int closest_bus, closest_bus_location;
+  closest_bus = 0;
+  closest_bus_location = fleet[0].current_stop;
+
+
+  //what will the time be when i get to the source stop of the request after travelling there
+  int time_to_from = request->time_stamp + (test_input->map[fleet[closest_bus].current_stop][request->from_stop] * 60); 
+
+  //the DISTANCE in time between source stop and destination stop
+  int from_stop_to_stop_time = (test_input->map[request->from_stop][request->to_stop] * 60); 
+
+
+  int left_from_stop = time_to_from + boarding_time;
+  int arrival_time = left_from_stop + from_stop_to_stop_time;
+  int time_unoccupied = arrival_time + boarding_time;
+
+  char time_stamp[1024];
+  format_global_time(time_stamp, request->time_stamp);
+
+  char for_departure[1024];
+  format_global_time(for_departure, request->for_departure);
+
+  char scheduled_for[1024];
+  format_global_time(scheduled_for, time_to_from);
 
 
 
+  char arrived_at_from[1024];
+  format_global_time(arrived_at_from, time_to_from);
 
-  for(i = 0; i < no_bus; i++)
+  char left_from_stop_s[1024];
+  format_global_time(left_from_stop_s, left_from_stop);
+
+  char arrival_time_s[1024];
+  format_global_time(arrival_time_s, arrival_time);
+
+  char time_unoccupied_s[1014];
+  format_global_time(time_unoccupied_s, time_unoccupied);
+  
+
+
+
+  //printf("I got out of the garage_loop\n");
+
+
+  //iterate through all of the fleet to find the bus the shortest distance from the pick up stop
+  //and then select the smallest accordingly
+  //printf("The location of minibus %d is stop: %d\n", closest_bus, fleet[closest_bus].current_stop);
+  for(i = no_bus - 1; i > 0; i--)
   {
-    //if we cannot schedule a bus on time
-    //to pick up this request
-    if((time_to_get_to_from - request->for_departure) > max_delay)
+    if(test_input->map[fleet[closest_bus].current_stop][request->from_stop] > test_input->map[fleet[i].current_stop][request->from_stop] && fleet[i].current_stop == 0)
     {
-      printf("%s -> new request placed from stop %d to stop %d for departure at %s cannot be accomodated \n", 
-      time_stamp,
-      request->from_stop, 
-      request->to_stop, 
-      for_departure);
+      fleet[i].current_stop = closest_bus_location;
+      closest_bus_location = fleet[i].current_stop;
+      closest_bus = i; //
       break;
+
     }
 
-    //search through all the buses in the garage
-    //and send the first one found to pick up passenger
-    if(fleet[i].current_stop == 0)
+
+
+    else if(test_input->map[fleet[closest_bus].current_stop][request->from_stop] > test_input->map[fleet[i].current_stop][request->from_stop]) //closes_bus is initially set to fleet[0]
     {
-      //printf("I have made it into the garage_loop\n");
-      //printf("The value of garage to stop is: %d \n", test_input->map[0][request->from_stop]);
+      fleet[i].current_stop = closest_bus_location;
+      closest_bus_location = fleet[i].current_stop;
+      closest_bus = i; //
+      break;
 
-      selected_bus = i + 1; //so we get a 1 - Nth range of buses
-      
-      road_map[request->from_stop] = selected_bus;
-      time_scheduled_for = request->time_stamp + garage_to_stop;
 
+
+
+
+    }
+  }
       
-      fleet[i].occupied++;
+
+
+  time_to_from = request->time_stamp + (test_input->map[closest_bus_location][request->from_stop] * 60);
+  left_from_stop = time_to_from + boarding_time;
+  arrival_time = left_from_stop + from_stop_to_stop_time;
+  time_unoccupied = arrival_time + boarding_time;
 
     
-      printf("%s -> new request placed from stop %d to stop %d for departure at %s scheduled for %s \n", 
-      time_stamp,
-      request->from_stop, 
-      request->to_stop, 
-      for_departure,
-      scheduled_for);
-
-      printf("%s -> Minibus %d left stop %d\n", time_left_garage_s, selected_bus, 0);
-      
-      fleet[i].current_stop = request->from_stop;
-      printf("%s -> Minibus %d arrived at stop %d\n", arrived_at_from, selected_bus, request->from_stop);
-
-      printf("%s -> Minibus %d became occupied and left stop %d\n", left_from_stop_s, selected_bus, request->from_stop);
-
-      //the bus has to travel from the pick up to the destination given the time it takes to get there
-      printf("%s -> Minibus %d arrived at stop %d \n", arrival_time_s, selected_bus, request->to_stop);
-      printf("%s -> Minibus %d disembarked passenger and became unoccupied\n\n", time_unoccupied_s, selected_bus);
-
-
-    fleet[i].current_stop = request->to_stop;
-
-    break; //we have found our bus to send out
-
-    }
-
-    //else there are no buses in the garage
-    //so we will need to check which bus is closest to the request source stop
-    //and route that bus there if we can
-    else
-    {
-      //
-    }
+  if((time_to_from - request->for_departure) > max_delay) //i.e we can't accomodate this bus
+  {
+    printf("%s -> new request placed from stop %d to stop %d for departure at %s cannot be accomodated \n", 
+    time_stamp,
+    request->from_stop, 
+    request->to_stop, 
+    for_departure);
+    return;
   }
 
 
+  printf("%s -> new request placed from stop %d to stop %d for departure at %s scheduled for %s \n", 
+  time_stamp,
+  request->from_stop, 
+  request->to_stop, 
+  for_departure,
+  scheduled_for);
+
+
+
+  //printf("The location of minibus %d is stop: %d\n", closest_bus, fleet[closest_bus].current_stop);
+  //printf("%s -> Minibus %d left stop %d", time_stamp, closest_bus,);
+  printf("%s -> Minibus %d arrived at stop %d\n", arrived_at_from, closest_bus, request->from_stop);
+  fleet[closest_bus].current_stop = request->from_stop;
+
+  printf("%s -> Minibus %d became occupied and left stop %d\n", left_from_stop_s, closest_bus, request->from_stop);
+  fleet[closest_bus].occupied++;
+
+  //the bus has to travel from the pick up to the destination given the time it takes to get there
+  printf("%s -> Minibus %d arrived at stop %d \n", arrival_time_s, closest_bus, request->to_stop);
+  fleet[closest_bus].current_stop = request->to_stop;
+
+  printf("%s -> Minibus %d disembarked passenger and became unoccupied\n\n", time_unoccupied_s, closest_bus);
+  fleet[closest_bus].occupied--;
+
+
+  //printf("The location of minibus %d is stop: %d\n", closest_bus, fleet[closest_bus].current_stop);
     
 
+    
 
-
-
-
-  //else all the buses have left the garage and we want to see where the next closest bus is
+  global_time = time_unoccupied;
+   
    
 
 
@@ -484,7 +502,7 @@ format_global_time(time_unoccupied_s, time_unoccupied);
 
 
   return;
-}
+} //end of handle_request
 
 
 static void floyd_warshall(struct input_file *test_input) //temporary return idea for new map
@@ -660,7 +678,7 @@ while(global_time < max_time)
   //int incrementing_factor = (int) ( 60/request_rate ) * 60; //gives us the number of minutes in between requests then multiply this by 60 to give us it in seconds
   int incrementing_factor = generate_random(time(NULL), request_rate);
   int request_frequency = ((60/request_rate) * 60 ); //average frequency of requests in seconds
-  global_time = global_time + incrementing_factor;
+  //global_time = global_time + incrementing_factor;
 
   //handle_request(&new_request, &updated_map, &fleet);
 
@@ -669,12 +687,6 @@ while(global_time < max_time)
 
 
 
-
-//NEED TO PRINT OUT REQEUSTS TO TERMINAL (to test it)
-
-//GIVEN A REQUEST, NEED TO HAVE A SCHEDULING FUNCTION AND A FUNCTION TO UPDATE THE SYSTEM (i.e where are the buses now)
-
-//NEED TO TERMINATE THE SIMULATION ONCE GLOBAL_TIME == MAX_TIME
 
 
   return 0;
